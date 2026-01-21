@@ -30,9 +30,9 @@ interface ParameterInfo {
 }
 
 interface PredictionResult {
-  probability: number;
-  riskLevel: 'low' | 'medium' | 'high';
-  message: string;
+  binary_prediction: 'Major Flare' | 'No Major Flare';
+  final_class: string;
+  confidence: number;
 }
 
 const parameterInfo: Record<keyof SolarParameters, ParameterInfo> = {
@@ -163,25 +163,18 @@ const SolarFlareForm = () => {
     const values = Object.values(parameters).map((v) => parseFloat(v) || 0);
     const avgValue = values.reduce((a, b) => a + b, 0) / values.length;
     
-    // Simple mock calculation for demo
-    let probability = Math.min(Math.max((avgValue / 10000) * 100, 5), 95);
-    probability = Math.round(probability * 100) / 100;
+    // Mock response simulating backend API
+    const mockClasses = ['B', 'C', 'M', 'X', 'B/C'];
+    const classIndex = Math.min(Math.floor(avgValue / 2500), 4);
+    const finalClass = mockClasses[classIndex];
+    const isMajorFlare = finalClass === 'M' || finalClass === 'X';
+    const confidence = Math.min(Math.max(0.4 + (avgValue / 20000), 0.4), 0.98);
 
-    let riskLevel: 'low' | 'medium' | 'high';
-    let message: string;
-
-    if (probability < 30) {
-      riskLevel = 'low';
-      message = 'Low probability of solar flare activity. Conditions appear stable.';
-    } else if (probability < 60) {
-      riskLevel = 'medium';
-      message = 'Moderate probability of solar flare activity. Continue monitoring.';
-    } else {
-      riskLevel = 'high';
-      message = 'High probability of solar flare activity. Enhanced monitoring recommended.';
-    }
-
-    setResult({ probability, riskLevel, message });
+    setResult({
+      binary_prediction: isMajorFlare ? 'Major Flare' : 'No Major Flare',
+      final_class: finalClass,
+      confidence: confidence,
+    });
     setIsLoading(false);
   };
 
@@ -207,7 +200,7 @@ const SolarFlareForm = () => {
           <div className="bg-transparent border border-white/10 rounded-2xl p-8 backdrop-blur-sm">
             <div className="flex items-center gap-3 mb-6">
               <Database className="w-6 h-6 text-accent" />
-              <h2 className="text-xl font-semibold text-foreground">
+              <h2 className="text-xl font-semibold text-white">
                 Solar Magnetic Parameters
               </h2>
             </div>
@@ -302,88 +295,64 @@ const SolarFlareForm = () => {
 
         {/* Results */}
         {result && (
-          <div className={`result-card ${result.riskLevel}-risk`}>
-            <div className="text-center space-y-6">
-              <h3 className="text-2xl font-bold text-foreground">
+          <div className={`bg-transparent border rounded-2xl p-8 backdrop-blur-sm ${
+            result.binary_prediction === 'Major Flare' 
+              ? 'border-red-500/50' 
+              : 'border-green-500/50'
+          }`}>
+            <div className="space-y-6">
+              <h3 className="text-2xl font-bold text-white text-center">
                 Prediction Results
               </h3>
               
-              {/* Probability gauge */}
-              <div className="relative w-48 h-48 mx-auto">
-                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                  {/* Background circle */}
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="45"
-                    fill="none"
-                    stroke="hsl(var(--muted))"
-                    strokeWidth="8"
-                  />
-                  {/* Progress circle */}
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="45"
-                    fill="none"
-                    stroke={
-                      result.riskLevel === 'low'
-                        ? 'hsl(120, 70%, 45%)'
-                        : result.riskLevel === 'medium'
-                        ? 'hsl(45, 100%, 50%)'
-                        : 'hsl(0, 85%, 60%)'
-                    }
-                    strokeWidth="8"
-                    strokeLinecap="round"
-                    strokeDasharray={`${result.probability * 2.83} 283`}
-                    className="transition-all duration-1000 ease-out"
-                    style={{
-                      filter: `drop-shadow(0 0 10px ${
-                        result.riskLevel === 'low'
-                          ? 'hsl(120, 70%, 45%)'
-                          : result.riskLevel === 'medium'
-                          ? 'hsl(45, 100%, 50%)'
-                          : 'hsl(0, 85%, 60%)'
-                      })`,
-                    }}
-                  />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-4xl font-bold text-foreground">
-                    {result.probability}%
+              {/* Results Grid */}
+              <div className="space-y-4 max-w-md mx-auto">
+                {/* Binary Prediction */}
+                <div className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10">
+                  <span className="text-muted-foreground font-medium">Binary Prediction</span>
+                  <span className={`flex items-center gap-2 font-semibold ${
+                    result.binary_prediction === 'Major Flare' 
+                      ? 'text-red-400' 
+                      : 'text-green-400'
+                  }`}>
+                    {result.binary_prediction === 'Major Flare' ? '✅' : '❌'} {result.binary_prediction}
                   </span>
-                  <span className="text-sm text-muted-foreground uppercase tracking-wider">
-                    Probability
+                </div>
+
+                {/* Final Prediction */}
+                <div className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10">
+                  <span className="text-muted-foreground font-medium">Final Prediction</span>
+                  <span className={`font-semibold ${
+                    result.final_class === 'M' || result.final_class === 'X'
+                      ? 'text-red-400'
+                      : 'text-green-400'
+                  }`}>
+                    {result.final_class === 'B/C' ? 'B / C Class' : `${result.final_class} Class`}
+                  </span>
+                </div>
+
+                {/* Prediction Confidence */}
+                <div className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10">
+                  <span className="text-muted-foreground font-medium">Prediction Confidence</span>
+                  <span className="text-white font-bold text-xl">
+                    {Math.round(result.confidence * 100)} %
                   </span>
                 </div>
               </div>
 
-              {/* Risk level badge */}
-              <div
-                className={`inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold uppercase tracking-wider ${
-                  result.riskLevel === 'low'
-                    ? 'bg-green-500/20 text-green-400 border border-green-500/50'
-                    : result.riskLevel === 'medium'
-                    ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50'
-                    : 'bg-red-500/20 text-red-400 border border-red-500/50'
-                }`}
-              >
-                <span
-                  className={`w-3 h-3 rounded-full animate-pulse ${
-                    result.riskLevel === 'low'
-                      ? 'bg-green-400'
-                      : result.riskLevel === 'medium'
-                      ? 'bg-yellow-400'
-                      : 'bg-red-400'
-                  }`}
-                />
-                {result.riskLevel} Risk
+              {/* Confidence Bar */}
+              <div className="max-w-md mx-auto">
+                <div className="h-3 bg-white/10 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full rounded-full transition-all duration-1000 ease-out ${
+                      result.binary_prediction === 'Major Flare'
+                        ? 'bg-gradient-to-r from-red-500 to-red-400'
+                        : 'bg-gradient-to-r from-green-500 to-green-400'
+                    }`}
+                    style={{ width: `${Math.round(result.confidence * 100)}%` }}
+                  />
+                </div>
               </div>
-
-              {/* Message */}
-              <p className="text-lg text-muted-foreground max-w-xl mx-auto">
-                {result.message}
-              </p>
             </div>
           </div>
         )}
